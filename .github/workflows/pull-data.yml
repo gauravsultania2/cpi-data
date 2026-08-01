@@ -1,0 +1,34 @@
+name: pull-data
+
+on:
+  schedule:
+    # 13:30 UTC (9:30am ET) and 22:30 UTC (6:30pm ET) daily
+    - cron: "30 13 * * *"
+    - cron: "30 22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Pull all data
+        env:
+          BLS_KEY: ${{ secrets.BLS_KEY }}
+          FRED_KEY: ${{ secrets.FRED_KEY }}
+          EIA_KEY: ${{ secrets.EIA_KEY }}
+        run: python pipeline/run_all.py
+      - name: Commit updated data
+        run: |
+          git config user.name "cpi-data-bot"
+          git config user.email "actions@github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "data refresh $(date -u +%F_%H:%M)"
+          git push
